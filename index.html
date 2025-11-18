@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Runner Cube — Versão Avançada</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="menu" class="overlay">
+    <div class="panel">
+      <h1>Runner Cube</h1>
+
+      <div class="row">
+        <label>Escolha a skin:</label>
+        <div id="skins" class="skins"></div>
+      </div>
+
+      <div class="row">
+        <label>Som:</label>
+        <button id="toggleSound" class="small-btn">ON</button>
+      </div>
+
+      <div class="row">
+        <button id="startBtn" class="big-btn">Iniciar (ESPAÇO)</button>
+        <button id="howBtn" class="small-btn">Como jogar</button>
+      </div>
+
+      <div class="row info">
+        <div>Última: <span id="uiLast">0</span></div>
+        <div>Recorde: <span id="uiBest">0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="hud" class="hud">
+    <div>Pontos: <span id="score">0</span></div>
+    <div>Moedas: <span id="coins">0</span></div>
+    <div>Velocidade: <span id="spd">1.0x</span></div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="gameOver" class="overlay hidden">
+    <div class="panel">
+      <h2>GAME OVER</h2>
+      <p>Pontos: <span id="finalScore">0</span></p>
+      <p>Moedas: <span id="finalCoins">0</span></p>
+      <div class="row">
+        <button id="retryBtn" class="big-btn">Reiniciar (ESPAÇO)</button>
+        <button id="menuBtn" class="small-btn">Menu</button>
+      </div>
+      <p class="small">Última: <span id="lastView">0</span> • Recorde: <span id="bestView">0</span></p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
