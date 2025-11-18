@@ -1,182 +1,227 @@
-// ===============================
-// CONFIGURAÇÕES DO JOGO
-// ===============================
+// Runner Game - estilo Dino Google
+
 let scene, camera, renderer;
-let player, playerBox;
+let player, ground;
 let obstacles = [];
-let speed = 0.15;          // velocidade inicial
+let clock = new THREE.Clock();
+
+let speed = 10;               // velocidade inicial
 let score = 0;
-let lastScore = 0;
-let lanes = [-2, 0, 2];
-let currentLane = 1;
-let isJumping = false;
-let velocityY = 0;
-let gravity = -0.01;
-let playing = false;
+let running = false;
+let canJump = true;
 
-const laneDistance = 2;
+let lastScore = 0;            // salva a última pontuação
+let lane = 0;                 // -1 esquerda, 0 meio, 1 direita
+const lanesX = [-3, 0, 3];
 
-// ===============================
-// INICIALIZAÇÃO
-// ===============================
+let spawnTimer = 0;
+let spawnInterval = 1.1;      // obstáculo aparece um pouco mais cedo
+
 function init() {
-    scene = new THREE.Scene();
+  const container = document.getElementById("game-container");
 
-    // CÂMERA — visão traseira correta
-    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 3, 6);
-    camera.lookAt(0, 1, 0);
+  scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x0b1220, 10, 80);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.getElementById("game-container").appendChild(renderer.domElement);
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
+  camera.position.set(0, 4, 15);
 
-    // LUZ
-    const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
-    light.position.set(0, 20, 0);
-    scene.add(light);
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(renderer.domElement);
 
-    // CHÃO — agora visível
-    const floorGeo = new THREE.PlaneGeometry(50, 2000);
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    scene.add(floor);
+  // luz
+  const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.1);
+  scene.add(light);
 
-    // PLAYER
-    const playerGeo = new THREE.BoxGeometry(1, 1, 1);
-    const playerMat = new THREE.MeshStandardMaterial({ color: 0x00ffff });
-    player = new THREE.Mesh(playerGeo, playerMat);
-    player.position.set(0, 0.5, 0);
-    scene.add(player);
+  // jogador
+  const pgeo = new THREE.BoxGeometry(1, 2, 1);
+  const pmat = new THREE.MeshStandardMaterial({ color: 0x22c1c3 });
+  player = new THREE.Mesh(pgeo, pmat);
+  player.position.set(0, 1, 0);
+  scene.add(player);
 
-    playerBox = new THREE.Box3().setFromObject(player);
+  // chão visível
+  const ggeo = new THREE.BoxGeometry(30, 1, 400);
+  const gmat = new THREE.MeshStandardMaterial({ color: 0x20252b });
+  ground = new THREE.Mesh(ggeo, gmat);
+  ground.position.set(0, -0.5, -150);
+  scene.add(ground);
 
-    // CONTROLES
-    document.addEventListener("keydown", handleKey);
-
-    animate();
+  window.addEventListener("resize", onResize);
+  document.addEventListener("keydown", keyPress);
 }
 
-// ===============================
-// INICIAR JOGO
-// ===============================
-function startGame() {
-    playing = true;
-    score = 0;
-    speed = 0.15; // velocidade inicial reinicia
-
-    document.getElementById("startBtn").style.display = "none";
-    document.getElementById("restartBtn").style.display = "none";
-}
-
-// ===============================
-// REINICIAR
-// ===============================
-function restartGame() {
-    obstacles.forEach(o => scene.remove(o.mesh));
-    obstacles = [];
-    currentLane = 1;
-    player.position.set(0, 0.5, 0);
-    isJumping = false;
-    velocityY = 0;
-
-    lastScore = Math.floor(score); // salva última pontuação
-    document.getElementById("lastScoreValue").innerText = lastScore;
-
-    startGame();
-}
-
-// ===============================
-// CONTROLES
-// ===============================
-function handleKey(e) {
-    if (!playing && e.code === "Space") restartGame();
-
-    if (!playing) return;
-
-    if (e.code === "ArrowLeft" && currentLane > 0) currentLane--;
-    if (e.code === "ArrowRight" && currentLane < 2) currentLane++;
-    if (e.code === "Space" && !isJumping) {
-        isJumping = true;
-        velocityY = 0.22;
-    }
-}
-
-// ===============================
-// CRIAR OBSTÁCULOS
-// ===============================
 function spawnObstacle() {
-    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-    const boxMat = new THREE.MeshStandardMaterial({ color: 0xff4444 });
-    const mesh = new THREE.Mesh(boxGeo, boxMat);
+  const size = Math.random() * 1.3 + 1;
+  const z = camera.position.z - 180;
+  const laneIndex = Math.floor(Math.random() * 3);
+  const x = lanesX[laneIndex];
 
-    const lane = Math.floor(Math.random() * 3);
-    mesh.position.set(lanes[lane], 0.5, -40);
+  const geo = new THREE.BoxGeometry(size, size, size);
+  const mat = new THREE.MeshStandardMaterial({ color: 0xff4d4d });
+  const obs = new THREE.Mesh(geo, mat);
 
-    obstacles.push({ mesh, lane });
-    scene.add(mesh);
+  obs.position.set(x, size / 2, z);
+  scene.add(obs);
+  obstacles.push(obs);
 }
 
-// ===============================
-// LOOP DO JOGO
-// ===============================
-function animate() {
-    requestAnimationFrame(animate);
+function resetGame() {
+  obstacles.forEach(o => scene.remove(o));
+  obstacles = [];
+  
+  lastScore = Math.floor(score);             // salva a última pontuação
+  document.getElementById("lastScoreValue").innerText = lastScore;
 
-    if (playing) {
-        // mover player para o trilho escolhido
-        player.position.x += (lanes[currentLane] - player.position.x) * 0.2;
+  score = 0;
+  speed = 10;
+  lane = 0;
+  player.position.set(0, 1, 0);
 
-        // pular
-        if (isJumping) {
-            player.position.y += velocityY;
-            velocityY += gravity;
+  spawnInterval = 1.1;
+  spawnTimer = 0;
 
-            if (player.position.y <= 0.5) {
-                player.position.y = 0.5;
-                isJumping = false;
-                velocityY = 0;
-            }
+  running = false;
+  canJump = true;
+
+  document.getElementById("scoreValue").innerText = 0;
+  document.getElementById("startBtn").style.display = "inline-block";
+  document.getElementById("restartBtn").style.display = "none";
+}
+
+function gameOver() {
+  running = false;
+  document.getElementById("restartBtn").style.display = "inline-block";
+}
+
+function keyPress(e) {
+  if (e.code === "Space") {
+    if (!running) {
+      running = true;
+      document.getElementById("startBtn").style.display = "none";
+      return;
+    }
+    jump();
+  }
+
+  if (!running) return;
+
+  if (e.code === "ArrowLeft") moveLeft();
+  if (e.code === "ArrowRight") moveRight();
+}
+
+function moveLeft() {
+  if (lane > -1) {
+    lane--;
+    player.position.x = lanesX[lane + 1] ?? lanesX[0];
+  }
+}
+
+function moveRight() {
+  if (lane < 1) {
+    lane++;
+    player.position.x = lanesX[lane + 1] ?? lanesX[2];
+  }
+}
+
+function jump() {
+  if (!canJump) return;
+
+  canJump = false;
+
+  const startY = player.position.y;
+  const peak = startY + 4;
+  const upStart = performance.now();
+
+  function up() {
+    const t = (performance.now() - upStart) / 1000;
+    if (t < 0.25) {
+      player.position.y = startY + (peak - startY) * (t / 0.25);
+      requestAnimationFrame(up);
+    } else {
+      const downStart = performance.now();
+      function down() {
+        const td = (performance.now() - downStart) / 1000;
+        if (td < 0.28) {
+          player.position.y = peak - (peak - startY) * (td / 0.28);
+          requestAnimationFrame(down);
+        } else {
+          player.position.y = startY;
+          canJump = true;
         }
+      }
+      requestAnimationFrame(down);
+    }
+  }
+  requestAnimationFrame(up);
+}
 
-        // SPAWNA obstáculos
-        if (Math.random() < 0.03) spawnObstacle();
+function update(dt) {
+  if (!running) return;
 
-        // mover obstáculos
-        obstacles.forEach(o => {
-            o.mesh.position.z += speed;
-        });
+  // 💥 Aceleração estilo Dino
+  speed += 0.004;           // aceleração base
+  speed += speed * 0.006;   // aceleração progressiva (igual ao Dino)
 
-        // remover obstáculos
-        obstacles = obstacles.filter(o => {
-            if (o.mesh.position.z > 5) {
-                scene.remove(o.mesh);
-                return false;
-            }
-            return true;
-        });
+  // pontuação sobe baseado na velocidade
+  score += speed * 0.3;
+  document.getElementById("scoreValue").innerText = Math.floor(score);
 
-        // colisão
-        playerBox.setFromObject(player);
-        obstacles.forEach(o => {
-            const box = new THREE.Box3().setFromObject(o.mesh);
-            if (playerBox.intersectsBox(box)) {
-                playing = false;
-                document.getElementById("restartBtn").style.display = "block";
-            }
-        });
+  spawnTimer += dt;
+  if (spawnTimer > spawnInterval) {
+    spawnTimer = 0;
+    spawnInterval = Math.max(0.45, spawnInterval - 0.02);
+    spawnObstacle();
+  }
 
-        // aumentar velocidade mais rápido
-        speed += 0.0025;
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const o = obstacles[i];
 
-        // pontuação mais rápida
-        score += speed * 30;
-        document.getElementById("scoreValue").innerText = Math.floor(score);
+    o.position.z += speed * dt * 0.9;
+
+    // remove quando passa
+    if (o.position.z > camera.position.z + 10) {
+      scene.remove(o);
+      obstacles.splice(i, 1);
+      continue;
     }
 
-    renderer.render(scene, camera);
+    // colisão
+    const dx = Math.abs(o.position.x - player.position.x);
+    const dz = Math.abs(o.position.z - player.position.z);
+    const dy = player.position.y < o.geometry.parameters.height + 1;
+
+    if (dx < 1.1 && dz < 1.3 && dy) {
+      gameOver();
+    }
+  }
 }
 
-// ===============================
-window.onload = init;
+function animate() {
+  const dt = clock.getDelta();
+  update(dt);
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+window.onload = () => {
+  init();
+  animate();
+
+  document.getElementById("startBtn").addEventListener("click", () => {
+    running = true;
+    document.getElementById("startBtn").style.display = "none";
+  });
+
+  document.getElementById("restartBtn").addEventListener("click", () => {
+    resetGame();
+  });
+};
